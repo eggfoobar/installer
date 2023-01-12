@@ -3,6 +3,7 @@ package version
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/openshift/installer/pkg/types"
@@ -68,7 +69,7 @@ func Version() (string, error) {
 		// the oc binary will not be pinned to Release Metadata:Version
 		return Raw, fmt.Errorf("release name was incorrectly replaced during extract")
 	}
-	return releaseName, nil
+	return fmt.Sprintf("%s_%s/%s", releaseName, runtime.GOOS, runtime.GOARCH), nil
 }
 
 // DefaultArch returns the default release architecture
