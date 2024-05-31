@@ -14,6 +14,7 @@ import (
 	"github.com/openshift/installer/pkg/asset/installconfig"
 	"github.com/openshift/installer/pkg/asset/manifests/capiutils"
 	"github.com/openshift/installer/pkg/asset/manifests/capiutils/cidr"
+	"github.com/openshift/installer/pkg/utils"
 )
 
 // GenerateClusterAssets generates the manifests for the cluster-api.
@@ -116,20 +117,24 @@ func GenerateClusterAssets(installConfig *installconfig.InstallConfig, clusterID
 						},
 						SecurityGroup: securityGroup,
 					},
-					{
-						SubnetClassSpec: capz.SubnetClassSpec{
-							Name: computeSubnet,
-							Role: capz.SubnetNode,
-							CIDRBlocks: []string{
-								subnets[1].String(),
-							},
-						},
-						SecurityGroup: securityGroup,
-					},
 				},
 			},
 		},
 	}
+	if !utils.IsSingleNode(installConfig.Config) {
+		azureCluster.Spec.NetworkSpec.Subnets = append(azureCluster.Spec.NetworkSpec.Subnets,
+			capz.SubnetSpec{
+				SubnetClassSpec: capz.SubnetClassSpec{
+					Name: computeSubnet,
+					Role: capz.SubnetNode,
+					CIDRBlocks: []string{
+						subnets[1].String(),
+					},
+				},
+				SecurityGroup: securityGroup,
+			})
+	}
+
 	azureCluster.SetGroupVersionKind(capz.GroupVersion.WithKind("AzureCluster"))
 	manifests = append(manifests, &asset.RuntimeFile{
 		Object: azureCluster,

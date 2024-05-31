@@ -35,6 +35,7 @@ import (
 	ovirttypes "github.com/openshift/installer/pkg/types/ovirt"
 	powervstypes "github.com/openshift/installer/pkg/types/powervs"
 	vspheretypes "github.com/openshift/installer/pkg/types/vsphere"
+	"github.com/openshift/installer/pkg/utils"
 )
 
 var (
@@ -79,7 +80,7 @@ func (cpc *CloudProviderConfig) Generate(dependencies asset.Parents) error {
 	installConfig := &installconfig.InstallConfig{}
 	clusterID := &installconfig.ClusterID{}
 	dependencies.Get(installConfig, clusterID)
-
+	isSingleNode := utils.IsSingleNode(installConfig.Config)
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: corev1.SchemeGroupVersion.String(),
@@ -134,6 +135,10 @@ func (cpc *CloudProviderConfig) Generate(dependencies asset.Parents) error {
 			vnet = installConfig.Config.Azure.VirtualNetwork
 		}
 		subnet := fmt.Sprintf("%s-worker-subnet", clusterID.InfraID)
+		if isSingleNode {
+			// Unless explicitly desired, avoid creating worker subnet for single node
+			subnet = ""
+		}
 		if installConfig.Config.Azure.ComputeSubnet != "" {
 			subnet = installConfig.Config.Azure.ComputeSubnet
 		}
