@@ -109,65 +109,69 @@ func createBaremetalHost(host *baremetal.Host, bmc baremetalhost.BMCDetails) bar
 
 // Hosts returns the HostSettings with details of the hardware being
 // used to construct the cluster.
-func Hosts(config *types.InstallConfig, machines []machineapi.Machine, userDataSecret string) (*HostSettings, error) {
+func Hosts(config *types.InstallConfig, machines []machineapi.Machine, role, userDataSecret string) (*HostSettings, error) {
 	settings := &HostSettings{}
 
 	if config.Platform.BareMetal == nil {
 		return nil, fmt.Errorf("no baremetal platform in configuration")
 	}
 
-	numRequiredMasters := len(machines)
-	numMasters := 0
+	numRequiredMachines := len(machines)
+	numMachines := 0
 	for _, host := range config.Platform.BareMetal.Hosts {
 
-		secret, bmc := createSecret(host)
-		if secret != nil {
-			settings.Secrets = append(settings.Secrets, *secret)
+		if host.Role == role && (numMachines < numRequiredMachines) {
+
+			secret, bmc := createSecret(host)
+			if secret != nil {
+				settings.Secrets = append(settings.Secrets, *secret)
+			}
+			newHost := createBaremetalHost(host, bmc)
+
+			if host.NetworkConfig != nil {
+				networkConfigSecret, err := createNetworkConfigSecret(host)
+				if err != nil {
+					return nil, err
+				}
+				settings.NetworkConfigSecrets = append(settings.NetworkConfigSecrets, *networkConfigSecret)
+				newHost.Spec.PreprovisioningNetworkDataName = networkConfigSecret.Name
+			}
+
+			if !host.IsMaster() && !host.IsArbiter() {
+				// Pause workers until the real control plane is up.
+				newHost.ObjectMeta.Annotations = map[string]string{
+					"baremetalhost.metal3.io/paused": "",
+				}
+			} else {
+				// Setting CustomDeploy early ensures that the
+				// corresponding Ironic node gets correctly configured
+				// from the beginning.
+				newHost.Spec.CustomDeploy = &baremetalhost.CustomDeploy{
+					Method: "install_coreos",
+				}
+
+				newHost.ObjectMeta.Labels = map[string]string{
+					"installer.openshift.io/role": "control-plane",
+				}
+
+				// Link the new host to the currently available machine
+				machine := machines[numMachines]
+				newHost.Spec.ConsumerRef = &corev1.ObjectReference{
+					APIVersion: machine.TypeMeta.APIVersion,
+					Kind:       machine.TypeMeta.Kind,
+					Namespace:  machine.ObjectMeta.Namespace,
+					Name:       machine.ObjectMeta.Name,
+				}
+				newHost.Spec.Online = true
+
+				// userDataSecret carries a reference to the master ignition file
+				newHost.Spec.UserData = &corev1.SecretReference{Name: userDataSecret}
+				numMachines++
+			}
+			settings.Hosts = append(settings.Hosts, newHost)
+
 		}
-		newHost := createBaremetalHost(host, bmc)
 
-		if host.NetworkConfig != nil {
-			networkConfigSecret, err := createNetworkConfigSecret(host)
-			if err != nil {
-				return nil, err
-			}
-			settings.NetworkConfigSecrets = append(settings.NetworkConfigSecrets, *networkConfigSecret)
-			newHost.Spec.PreprovisioningNetworkDataName = networkConfigSecret.Name
-		}
-
-		if !host.IsWorker() && numMasters < numRequiredMasters {
-			// Setting CustomDeploy early ensures that the
-			// corresponding Ironic node gets correctly configured
-			// from the beginning.
-			newHost.Spec.CustomDeploy = &baremetalhost.CustomDeploy{
-				Method: "install_coreos",
-			}
-
-			newHost.ObjectMeta.Labels = map[string]string{
-				"installer.openshift.io/role": "control-plane",
-			}
-
-			// Link the new host to the currently available machine
-			machine := machines[numMasters]
-			newHost.Spec.ConsumerRef = &corev1.ObjectReference{
-				APIVersion: machine.TypeMeta.APIVersion,
-				Kind:       machine.TypeMeta.Kind,
-				Namespace:  machine.ObjectMeta.Namespace,
-				Name:       machine.ObjectMeta.Name,
-			}
-			newHost.Spec.Online = true
-
-			// userDataSecret carries a reference to the master ignition file
-			newHost.Spec.UserData = &corev1.SecretReference{Name: userDataSecret}
-			numMasters++
-		} else {
-			// Pause workers until the real control plane is up.
-			newHost.ObjectMeta.Annotations = map[string]string{
-				"baremetalhost.metal3.io/paused": "",
-			}
-		}
-
-		settings.Hosts = append(settings.Hosts, newHost)
 	}
 
 	return settings, nil

@@ -29,8 +29,9 @@ const (
 )
 
 const (
-	masterRole string = "master"
-	workerRole string = "worker"
+	masterRole  string = "master"
+	arbiterRole string = "arbiter"
+	workerRole  string = "worker"
 )
 
 // Host stores all the configuration data for a baremetal host.
@@ -48,6 +49,10 @@ type Host struct {
 // IsMaster checks if the current host is a master
 func (h *Host) IsMaster() bool {
 	return h.Role == masterRole
+}
+
+func (h *Host) IsArbiter() bool {
+	return h.Role == arbiterRole
 }
 
 // IsWorker checks if the current host is a worker
