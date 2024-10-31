@@ -244,6 +244,9 @@ func (m *Master) Generate(ctx context.Context, dependencies asset.Parents) error
 		if err != nil {
 			return errors.Wrap(err, "failed to create master machine objects")
 		}
+		if ic.Arbiter != nil {
+			controlPlaneMachineSet.Spec.State = "Inactive"
+		}
 		aws.ConfigMasters(machines, controlPlaneMachineSet, clusterID.InfraID, ic.Publish)
 	case gcptypes.Name:
 		mpool := defaultGCPMachinePoolPlatform(pool.Architecture)
@@ -404,7 +407,7 @@ func (m *Master) Generate(ctx context.Context, dependencies asset.Parents) error
 			return errors.Wrap(err, "failed to create master machine objects")
 		}
 
-		hostSettings, err := baremetal.Hosts(ic, machines, masterUserDataSecretName)
+		hostSettings, err := baremetal.Hosts(ic, machines, "master", masterUserDataSecretName)
 		if err != nil {
 			return errors.Wrap(err, "failed to assemble host data")
 		}

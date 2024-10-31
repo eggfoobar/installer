@@ -100,6 +100,9 @@ func (p Provider) Ignition(ctx context.Context, in clusterapi.IgnitionInput) ([]
 		clusterapi.IgnitionSecret(ignBytes, in.InfraID, "bootstrap"),
 		clusterapi.IgnitionSecret(in.MasterIgnData, in.InfraID, "master"),
 	}
+	if len(in.ArbiterIgnData) > 0 {
+		ignSecrets = append(ignSecrets, clusterapi.IgnitionSecret(in.ArbiterIgnData, in.InfraID, "arbiter"))
+	}
 	return ignSecrets, nil
 }
 

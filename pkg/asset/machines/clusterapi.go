@@ -187,6 +187,58 @@ func (c *ClusterAPI) Generate(ctx context.Context, dependencies asset.Parents) e
 		if err != nil {
 			return errors.Wrap(err, "failed to create master machine objects")
 		}
+
+		if ic.Arbiter != nil {
+			arbiterPool := *ic.Arbiter
+			apool := defaultAWSMachinePoolPlatform("arbiter")
+			apool.AMIID = osImageID
+			apool.Set(ic.Platform.AWS.DefaultMachinePlatform)
+			apool.Set(arbiterPool.Platform.AWS)
+			if len(apool.Zones) == 0 {
+				if len(subnets) > 0 {
+					for zone := range subnets {
+						apool.Zones = append(apool.Zones, zone)
+					}
+				} else {
+					apool.Zones, err = installConfig.AWS.AvailabilityZones(ctx)
+					if err != nil {
+						return err
+					}
+					zoneDefaults = true
+				}
+			}
+			if apool.InstanceType == "" {
+				topology := configv1.HighlyAvailableArbiter
+				apool.InstanceType, err = aws.PreferredInstanceType(ctx, installConfig.AWS, awsdefaults.InstanceTypes(installConfig.Config.Platform.AWS.Region, installConfig.Config.Arbiter.Architecture, topology), apool.Zones)
+				if err != nil {
+					logrus.Warn(errors.Wrap(err, "failed to find default instance type"))
+					apool.InstanceType = awsdefaults.InstanceTypes(installConfig.Config.Platform.AWS.Region, installConfig.Config.Arbiter.Architecture, topology)[0]
+				}
+			}
+			if zoneDefaults {
+				apool.Zones, err = aws.FilterZonesBasedOnInstanceType(ctx, installConfig.AWS, apool.InstanceType, apool.Zones)
+				if err != nil {
+					logrus.Warn(errors.Wrap(err, "failed to filter zone list"))
+				}
+			}
+			arbiterPool.Platform.AWS = &apool
+			awsArbiterMachines, err := aws.GenerateMachines(clusterID.InfraID, &aws.MachineInput{
+				Role:     "arbiter",
+				Pool:     &arbiterPool,
+				Subnets:  subnets,
+				Tags:     tags,
+				PublicIP: publicOnlySubnets,
+				Ignition: &v1beta2.Ignition{
+					Version: "3.2",
+					// arbiter machines should get ignition from the MCS on the bootstrap node
+					StorageType: v1beta2.IgnitionStorageTypeOptionUnencryptedUserData,
+				},
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to create master machine objects")
+			}
+			c.FileList = append(c.FileList, awsArbiterMachines...)
+		}
 		c.FileList = append(c.FileList, awsMachines...)
 
 		ignition, err := aws.CapaIgnitionWithCertBundleAndProxy(installConfig.Config.AdditionalTrustBundle, installConfig.Config.Proxy)

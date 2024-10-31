@@ -119,6 +119,7 @@ func (a *Common) Dependencies() []asset.Asset {
 		&kubeconfig.LoopbackClient{},
 		&mcign.MasterIgnitionCustomizations{},
 		&mcign.WorkerIgnitionCustomizations{},
+		&machines.Arbiter{},
 		&machines.Master{},
 		&machines.Worker{},
 		&manifests.Manifests{},
@@ -583,6 +584,7 @@ func (a *Common) addParentFiles(dependencies asset.Parents) {
 	for _, asset := range []asset.WritableAsset{
 		&manifests.Manifests{},
 		&manifests.Openshift{},
+		&machines.Arbiter{},
 		&machines.Master{},
 		&machines.Worker{},
 		&mcign.MasterIgnitionCustomizations{},

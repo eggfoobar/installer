@@ -64,6 +64,7 @@ type IgnitionInput struct {
 	Client           client.Client
 	BootstrapIgnData []byte
 	MasterIgnData    []byte
+	ArbiterIgnData   []byte
 	InfraID          string
 	InstallConfig    *installconfig.InstallConfig
 	TFVarsAsset      *tfvars.TerraformVariables

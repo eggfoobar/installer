@@ -269,7 +269,7 @@ routes:
 
 	for _, tc := range testCases {
 		t.Run(tc.Scenario, func(t *testing.T) {
-			settings, err := Hosts(tc.Config, tc.Machines, "user-data-secret")
+			settings, err := Hosts(tc.Config, tc.Machines, "master", "user-data-secret")
 
 			if tc.ExpectedError != "" {
 				assert.EqualError(t, err, tc.ExpectedError)

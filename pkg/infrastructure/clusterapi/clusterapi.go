@@ -81,6 +81,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 	rhcosImage := new(rhcos.Image)
 	bootstrapIgnAsset := &bootstrap.Bootstrap{}
 	masterIgnAsset := &machine.Master{}
+	arbiterIgnAsset := &machine.Arbiter{}
 	tfvarsAsset := &tfvars.TerraformVariables{}
 	parents.Get(
 		manifestsAsset,
@@ -92,6 +93,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 		rhcosImage,
 		bootstrapIgnAsset,
 		masterIgnAsset,
+		arbiterIgnAsset,
 		capiMachinesAsset,
 		tfvarsAsset,
 	)
@@ -272,6 +274,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 	}
 
 	masterIgnData := masterIgnAsset.Files()[0].Data
+	arbiterIgnData := arbiterIgnAsset.Files()[0].Data
 	bootstrapIgnData, err := injectInstallInfo(bootstrapIgnAsset.Files()[0].Data)
 	if err != nil {
 		return fileList, fmt.Errorf("unable to inject installation info: %w", err)
@@ -285,6 +288,7 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 			Client:           cl,
 			BootstrapIgnData: bootstrapIgnData,
 			MasterIgnData:    masterIgnData,
+			ArbiterIgnData:   arbiterIgnData,
 			InfraID:          clusterID.InfraID,
 			InstallConfig:    installConfig,
 			TFVarsAsset:      tfvarsAsset,
@@ -299,7 +303,8 @@ func (i *InfraProvider) Provision(ctx context.Context, dir string, parents asset
 		logrus.Debugf("Using default ignition for the %s provider", i.impl.Name())
 		bootstrapIgnSecret := IgnitionSecret(bootstrapIgnData, clusterID.InfraID, "bootstrap")
 		masterIgnSecret := IgnitionSecret(masterIgnData, clusterID.InfraID, "master")
-		ignitionSecrets = append(ignitionSecrets, bootstrapIgnSecret, masterIgnSecret)
+		arbiterIgnSecret := IgnitionSecret(arbiterIgnData, clusterID.InfraID, "arbiter")
+		ignitionSecrets = append(ignitionSecrets, bootstrapIgnSecret, masterIgnSecret, arbiterIgnSecret)
 	}
 
 	for _, secret := range ignitionSecrets {
