@@ -900,7 +900,7 @@ spec:
                               description: name is the resource name in the PC
                               type: string
                             type:
-                              description: Type is the identifier type to use for
+                              description: type is the identifier type to use for
                                 this resource.
                               enum:
                               - uuid
@@ -1967,7 +1967,7 @@ spec:
                             description: name is the resource name in the PC
                             type: string
                           type:
-                            description: Type is the identifier type to use for this
+                            description: type is the identifier type to use for this
                               resource.
                             enum:
                             - uuid
@@ -4071,7 +4071,7 @@ spec:
                             description: name is the resource name in the PC
                             type: string
                           type:
-                            description: Type is the identifier type to use for this
+                            description: type is the identifier type to use for this
                               resource.
                             enum:
                             - uuid
